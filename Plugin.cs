@@ -54,6 +54,7 @@ class ClockworkHatchling_DoEnableReset_Patch
         {
             int newValue = oldValue * clockworkHatchlingMoreHealth.HpMultiplier.Value;
             hpField.SetValue(__instance, newValue);
+            clockworkHatchlingMoreHealth.Log.LogInfo($"[ClockworkHatchling DoEnableReset] hp before: {oldValue}, after: {newValue}");
         }
     }
 }
