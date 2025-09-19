@@ -13,18 +13,25 @@ namespace clockworkHatchlingMoreHealth;
 public class clockworkHatchlingMoreHealth : BaseUnityPlugin
 {
     internal static ManualLogSource Log;
-    internal static ConfigEntry<int> HpMultiplier; // config entry
+    internal static ConfigEntry<int> HpMultiplier;
+    internal static ConfigEntry<int> BaseHpOverride;
 
     void Awake()
     {
         Log = Logger;
 
-        // Create config entry
         HpMultiplier = Config.Bind(
-            "General",                // Section
-            "HpMultiplier",           // Key
-            2,                        // Default value
-            "Multiplier applied to Clockwork Hatchling (Cogfly) HP." // Description
+            "General",
+            "HpMultiplier",
+            2,
+            "Multiplier applied to Clockwork Hatchling (Cogfly) HP. Set to 1 if you want to only use BaseHpOverride."
+        );
+
+        BaseHpOverride = Config.Bind(
+            "General",
+            "BaseHpOverride",
+            0,
+            "Optional fixed base HP for Clockwork Hatchlings. If > 0, this value is used instead of the prefab’s default (6). Final HP = BaseHp * Multiplier."
         );
 
         var harmony = new Harmony("com.remghoost.clockworkhatchlingmorehealth");
@@ -49,12 +56,22 @@ class ClockworkHatchling_DoEnableReset_Patch
 
         int oldValue = (int)hpField.GetValue(__instance);
 
-        // Only modify if it's the prefab's default value (6)
-        if (oldValue == 6)
+        // Guard so we only modify if it's at the prefab default (6) OR someone has provided an override.
+        if (oldValue == 6 || clockworkHatchlingMoreHealth.BaseHpOverride.Value > 0)
         {
-            int newValue = oldValue * clockworkHatchlingMoreHealth.HpMultiplier.Value;
+            int safeMultiplier = clockworkHatchlingMoreHealth.HpMultiplier.Value;
+            if (safeMultiplier <= 0) safeMultiplier = 1; // safety fallback
+
+            int baseHp = clockworkHatchlingMoreHealth.BaseHpOverride.Value > 0
+                ? clockworkHatchlingMoreHealth.BaseHpOverride.Value
+                : oldValue; // fallback to prefab’s 6 if no override
+
+            int newValue = baseHp * safeMultiplier;
             hpField.SetValue(__instance, newValue);
-            clockworkHatchlingMoreHealth.Log.LogInfo($"[ClockworkHatchling DoEnableReset] hp before: {oldValue}, after: {newValue}");
+
+            clockworkHatchlingMoreHealth.Log.LogInfo(
+                $"[ClockworkHatchling DoEnableReset] hp before: {oldValue}, override: {baseHp}, multiplier: {safeMultiplier}, final: {newValue}"
+            );
         }
     }
 }
